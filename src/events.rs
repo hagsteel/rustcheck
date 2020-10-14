@@ -1,9 +1,11 @@
+use std::io::{self, BufRead};
+use std::process;
 use std::sync::mpsc;
 use std::thread;
-use std::process;
-use std::io::{self, BufRead};
 
-use crossterm::event::{self as crossterm_event, Event as CTEvent, KeyEvent, KeyCode};
+use crossterm::event::{
+    self as crossterm_event, Event as CTEvent, KeyCode, KeyEvent, KeyModifiers,
+};
 
 use crate::parser::{parse_line, BuildResult};
 
@@ -17,7 +19,6 @@ pub enum Event {
 }
 
 fn cargo_watch(tx: Tx) -> process::Child {
-
     let mut output = process::Command::new("cargo")
         .arg("watch")
         .arg("-x")
@@ -35,31 +36,31 @@ fn cargo_watch(tx: Tx) -> process::Child {
     let mut lines = br.lines();
     let mut output_lines = Vec::new();
     if let Some(Ok(line)) = lines.next() {
-        if line.starts_with("error: Not a Cargo project, aborting.") {
+        if line.starts_with("error") {
             let _ = output.kill();
-            panic!("Not a Rust project");
+            panic!(line);
         } else {
             output_lines.push(line);
         }
     }
 
-    thread::spawn(move|| {
-
+    thread::spawn(move || {
         loop {
             while let Some(Ok(line)) = lines.next() {
                 // If this is not a Cargo project then bail:
 
                 // Four spaces or blank line means end
                 if line.starts_with("    ") || line.trim() == "" {
-                    break 
+                    break;
                 } else {
                     output_lines.push(line);
                 }
             }
 
-            let _ = tx.send(Event::BuildEvent(output_lines.drain(..).filter_map(parse_line).collect()));
+            let _ = tx.send(Event::BuildEvent(
+                output_lines.drain(..).filter_map(parse_line).collect(),
+            ));
         }
-
     });
 
     output
@@ -72,7 +73,15 @@ fn input_events(tx: Tx) {
     thread::spawn(move || {
         for ev in crossterm_event::read() {
             match ev {
-                CTEvent::Key(KeyEvent { code: KeyCode::Esc, .. }) => {
+                CTEvent::Key(KeyEvent {
+                    code: KeyCode::Esc, ..
+                }) => {
+                    let _ = tx.send(Event::Quit);
+                }
+                CTEvent::Key(KeyEvent {
+                    code: KeyCode::Char('c'),
+                    modifiers: KeyModifiers::CONTROL,
+                }) => {
                     let _ = tx.send(Event::Quit);
                 }
                 CTEvent::Resize(..) => {

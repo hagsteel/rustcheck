@@ -1,5 +1,5 @@
-use std::io;
 use crossterm::terminal::enable_raw_mode;
+use std::io;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
 
@@ -11,6 +11,7 @@ use crate::events::{events, Event};
 pub use parser::BuildResult;
 
 fn main() -> io::Result<()> {
+    let (rx, mut child_proc) = events();
 
     enable_raw_mode().expect("Could not put terminal into raw mode");
     let stdout = io::stdout();
@@ -18,8 +19,6 @@ fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(backend)?;
     terminal.hide_cursor()?;
     terminal.clear()?;
-
-    let (rx, mut child_proc) = events();
 
     let mut build_res = None;
     loop {
@@ -39,8 +38,9 @@ fn main() -> io::Result<()> {
                 });
             }
             Event::Quit => {
-                // println!("ESC WAS PRESSED OMG WHY ARE YOU STILL RUNNING");
-                child_proc.kill().expect("Failed to terminate the child process");
+                child_proc
+                    .kill()
+                    .expect("Failed to terminate the child process");
                 break Ok(());
             }
         }
