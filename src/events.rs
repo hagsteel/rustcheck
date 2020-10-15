@@ -1,4 +1,3 @@
-use std::io::{self, BufRead};
 use std::process;
 use std::sync::mpsc;
 use std::thread;
@@ -7,9 +6,10 @@ use crossterm::event::{
     self as crossterm_event, Event as CTEvent, KeyCode, KeyEvent, KeyModifiers,
 };
 
-use crate::parser::{parse_line, BuildResult};
+use crate::parser::BuildResult;
+use crate::watch::cargo_watch;
 
-type Tx = mpsc::Sender<Event>;
+pub type Tx = mpsc::Sender<Event>;
 
 #[derive(Debug)]
 pub enum Event {
@@ -18,76 +18,31 @@ pub enum Event {
     Quit,
 }
 
-fn cargo_watch(tx: Tx) -> process::Child {
-    let mut output = process::Command::new("cargo")
-        .arg("watch")
-        .arg("-x")
-        .arg("check --message-format short")
-        .stderr(process::Stdio::piped())
-        .stdout(process::Stdio::null())
-        .spawn()
-        .unwrap_or_else(|_| {
-            eprintln!("Err: Failed to get output");
-            process::exit(1);
-        });
-
-    let stderr = output.stderr.take().expect("failed to get stderr");
-    let br = io::BufReader::new(stderr);
-    let mut lines = br.lines();
-    let mut output_lines = Vec::new();
-    if let Some(Ok(line)) = lines.next() {
-        if line.starts_with("error") {
-            let _ = output.kill();
-            panic!(line);
-        } else {
-            output_lines.push(line);
-        }
-    }
-
-    thread::spawn(move || {
-        loop {
-            while let Some(Ok(line)) = lines.next() {
-                // If this is not a Cargo project then bail:
-
-                // Four spaces or blank line means end
-                if line.starts_with("    ") || line.trim() == "" {
-                    break;
-                } else {
-                    output_lines.push(line);
-                }
-            }
-
-            let _ = tx.send(Event::BuildEvent(
-                output_lines.drain(..).filter_map(parse_line).collect(),
-            ));
-        }
-    });
-
-    output
-}
 
 // -----------------------------------------------------------------------------
 //     - Input / resize events -
 // -----------------------------------------------------------------------------
 fn input_events(tx: Tx) {
     thread::spawn(move || {
-        for ev in crossterm_event::read() {
-            match ev {
-                CTEvent::Key(KeyEvent {
-                    code: KeyCode::Esc, ..
-                }) => {
-                    let _ = tx.send(Event::Quit);
+        loop {
+            if let Ok(ev) = crossterm_event::read() {
+                match ev {
+                    CTEvent::Key(KeyEvent {
+                        code: KeyCode::Esc, ..
+                    }) => {
+                        let res = tx.send(Event::Quit);
+                    }
+                    CTEvent::Key(KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::CONTROL,
+                    }) => {
+                        let _ = tx.send(Event::Quit);
+                    }
+                    CTEvent::Resize(..) => {
+                        let _ = tx.send(Event::Redraw);
+                    }
+                    CTEvent::Key(_) | CTEvent::Mouse(_) => {}
                 }
-                CTEvent::Key(KeyEvent {
-                    code: KeyCode::Char('c'),
-                    modifiers: KeyModifiers::CONTROL,
-                }) => {
-                    let _ = tx.send(Event::Quit);
-                }
-                CTEvent::Resize(..) => {
-                    let _ = tx.send(Event::Redraw);
-                }
-                CTEvent::Key(_) | CTEvent::Mouse(_) => {}
             }
         }
     });
@@ -98,4 +53,10 @@ pub fn events() -> (mpsc::Receiver<Event>, process::Child) {
     input_events(tx.clone());
     let child = cargo_watch(tx);
     (rx, child)
+}
+
+pub fn events_debug() -> (mpsc::Receiver<Event>, ()) {
+    let (tx, rx) = mpsc::channel();
+    input_events(tx.clone());
+    (rx, ())
 }

@@ -6,12 +6,12 @@ use tui::Terminal;
 mod display;
 mod events;
 mod parser;
+mod watch;
 
-use crate::events::{events, Event};
+use crate::events::{events, events_debug, Event};
 pub use parser::BuildResult;
 
 fn main() -> io::Result<()> {
-    let (rx, mut child_proc) = events();
 
     enable_raw_mode().expect("Could not put terminal into raw mode");
     let stdout = io::stdout();
@@ -20,12 +20,15 @@ fn main() -> io::Result<()> {
     terminal.hide_cursor()?;
     terminal.clear()?;
 
-    let mut build_res = None;
+    let (rx, mut child_proc) = events();
+
+    let mut build_res: Option<BuildResult> = None;
     loop {
         let event = match rx.recv() {
             Ok(e) => e,
-            Err(_e) => continue,
+            Err(e) => continue,
         };
+
 
         match event {
             Event::BuildEvent(br) => {
@@ -38,9 +41,9 @@ fn main() -> io::Result<()> {
                 });
             }
             Event::Quit => {
-                child_proc
-                    .kill()
-                    .expect("Failed to terminate the child process");
+                // child_proc
+                //     .kill()
+                //     .expect("Failed to terminate the child process");
                 break Ok(());
             }
         }

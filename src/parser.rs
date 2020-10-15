@@ -94,7 +94,7 @@ pub fn parse_line(line: String) -> Option<Line> {
 }
 
 fn line_from_parts(p: Vec<&str>) -> Option<Line> {
-    if p.len() == 1 {
+    if p.len() < 2 {
         return None;
     }
 
