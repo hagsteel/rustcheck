@@ -7,14 +7,30 @@ use tui::widgets::Paragraph;
 use crate::BuildResult;
 
 fn draw_warnings_and_errors(f: &mut Frame<impl Backend>, result: &BuildResult) {
+    let warning_style = {
+        if result.warnings.len() > 0 {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        }
+    };
+
     let warnings = Span::styled(
         format!("{} ", result.warnings.len()),
-        Style::default().fg(Color::Yellow),
+        warning_style,
     );
+
+    let error_style = {
+        if result.errors.len() > 0 {
+            Style::default().fg(Color::LightRed)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        }
+    };
 
     let errors = Span::styled(
         format!("{} ", result.errors.len()),
-        Style::default().fg(Color::LightRed),
+        error_style
     );
 
     let sep = Span::from("|");
