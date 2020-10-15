@@ -8,12 +8,12 @@ use crate::BuildResult;
 
 fn draw_warnings_and_errors(f: &mut Frame<impl Backend>, result: &BuildResult) {
     let warnings = Span::styled(
-        format!("{} W", result.warnings.len()),
+        format!("{} ", result.warnings.len()),
         Style::default().fg(Color::Yellow),
     );
 
     let errors = Span::styled(
-        format!("{} E", result.errors.len()),
+        format!("{} ", result.errors.len()),
         Style::default().fg(Color::LightRed),
     );
 
