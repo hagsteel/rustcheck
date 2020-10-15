@@ -8,7 +8,7 @@ mod events;
 mod parser;
 mod watch;
 
-use crate::events::{events, events_debug, Event};
+use crate::events::{events, Event};
 pub use parser::BuildResult;
 
 fn main() -> io::Result<()> {
@@ -26,7 +26,7 @@ fn main() -> io::Result<()> {
     loop {
         let event = match rx.recv() {
             Ok(e) => e,
-            Err(e) => continue,
+            Err(_e) => continue,
         };
 
 
@@ -41,9 +41,9 @@ fn main() -> io::Result<()> {
                 });
             }
             Event::Quit => {
-                // child_proc
-                //     .kill()
-                //     .expect("Failed to terminate the child process");
+                child_proc
+                    .kill()
+                    .expect("Failed to terminate the child process");
                 break Ok(());
             }
         }

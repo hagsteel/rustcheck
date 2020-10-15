@@ -30,7 +30,7 @@ fn input_events(tx: Tx) {
                     CTEvent::Key(KeyEvent {
                         code: KeyCode::Esc, ..
                     }) => {
-                        let res = tx.send(Event::Quit);
+                        let _ = tx.send(Event::Quit);
                     }
                     CTEvent::Key(KeyEvent {
                         code: KeyCode::Char('c'),
@@ -53,10 +53,4 @@ pub fn events() -> (mpsc::Receiver<Event>, process::Child) {
     input_events(tx.clone());
     let child = cargo_watch(tx);
     (rx, child)
-}
-
-pub fn events_debug() -> (mpsc::Receiver<Event>, ()) {
-    let (tx, rx) = mpsc::channel();
-    input_events(tx.clone());
-    (rx, ())
 }
