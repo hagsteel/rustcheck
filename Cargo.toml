@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 tui = { version = "0.12.0", default-features = false, features = ["crossterm"] }
-crossterm = "0.18.0"
+crossterm = "0.17.7"
